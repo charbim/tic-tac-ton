@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ultimate Tic-Tac-Toe</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+          'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+          sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 20px;
+        position: relative;
+        overflow-x: hidden;
+        background-color: #ff0000;
+        transition: background-color 1.5s ease;
+      }
+
+      body::before {
+        content: attr(data-symbol);
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 60vw;
+        font-weight: bold;
+        opacity: 0.08;
+        pointer-events: none;
+        transition: opacity 1.5s ease;
+        z-index: 0;
+        color: white;
+        white-space: nowrap;
+      }
+
+      body::after {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: -1;
+        transition: opacity 1.5s ease;
+        background: linear-gradient(135deg, rgba(0, 0, 0, 0.15) 0%, rgba(0, 0, 0, 0.25) 50%, rgba(0, 0, 0, 0.35) 100%);
+      }
+
+      body.x {
+        background-color: #ff0000;
+      }
+
+      body.x::after {
+        opacity: 1;
+      }
+
+      body.o {
+        background-color: #0066ff;
+      }
+
+      body.o::after {
+        opacity: 1;
+      }
+
+      .container {
+        background: transparent;
+        padding: 40px;
+        text-align: center;
+        max-width: 1200px;
+        width: 100%;
+        position: relative;
+        z-index: 1;
+      }
+
+      h1 {
+        margin-bottom: 30px;
+        color: white;
+        font-size: 2.5em;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+
+      .meta-board-container {
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 20px;
+        padding: 20px;
+        width: 100%;
+        max-width: 940px;
+        margin: 0 auto;
+        position: relative;
+      }
+
+      .meta-board {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0;
+        width: 100%;
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 0;
+        background: transparent;
+        border-radius: 20px;
+        position: relative;
+        align-items: stretch;
+      }
+
+      .mini-board-wrapper {
+        position: relative;
+        background: transparent;
+        padding: 0;
+        aspect-ratio: 1;
+        box-sizing: border-box;
+        margin: 0;
+        overflow: hidden;
+      }
+
+      /* Add major grid lines between mini boards - horizontal lines (between rows, not around edges) */
+      .mini-board-wrapper:nth-child(4),
+      .mini-board-wrapper:nth-child(5),
+      .mini-board-wrapper:nth-child(6),
+      .mini-board-wrapper:nth-child(7),
+      .mini-board-wrapper:nth-child(8),
+      .mini-board-wrapper:nth-child(9) {
+        border-top: 4px solid rgba(255, 255, 255, 0.5);
+      }
+
+      /* Add major grid lines between mini boards - vertical lines (between columns, not around edges) */
+      .mini-board-wrapper:nth-child(2),
+      .mini-board-wrapper:nth-child(3),
+      .mini-board-wrapper:nth-child(5),
+      .mini-board-wrapper:nth-child(6),
+      .mini-board-wrapper:nth-child(8),
+      .mini-board-wrapper:nth-child(9) {
+        border-left: 4px solid rgba(255, 255, 255, 0.5);
+      }
+
+      .mini-board {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        width: 100%;
+        height: 100%;
+        gap: 0;
+        position: relative;
+        box-sizing: border-box;
+        align-items: stretch;
+      }
+
+      .mini-cell {
+        background: transparent;
+        border: none; /* reset default button border */
+        border-right: 2px solid rgba(255, 255, 255, 0.3);
+        border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+        font-size: 2.5em;
+        font-weight: bold;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        aspect-ratio: 1;
+        padding: 0;
+        margin: 0;
+        user-select: none;
+        min-height: 0;
+        box-sizing: border-box;
+        position: relative;
+        width: 100%;
+        height: 100%;
+      }
+
+      /* Remove right border on rightmost cells of each mini board */
+      .mini-cell:nth-child(3n) {
+        border-right: none;
+      }
+
+      /* Remove bottom border on bottommost cells of each mini board */
+      .mini-cell:nth-child(n+7) {
+        border-bottom: none;
+      }
+
+      .mini-cell:hover:not(:disabled) {
+        background: transparent;
+      }
+
+      .mini-cell.x {
+        color: red;
+      }
+
+      .mini-cell.o {
+        color: blue;
+      }
+
+      .mini-cell:disabled {
+        cursor: not-allowed;
+        opacity: 0.7;
+      }
+
+      .mini-board-winner {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 20em;
+        font-weight: bold;
+        pointer-events: none;
+        z-index: 10;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .mini-board-winner.x {
+        color: red;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      .mini-board-winner.o {
+        color: blue;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      .winning-line {
+        position: absolute;
+        z-index: 9;
+        pointer-events: none;
+        border-radius: 2px;
+      }
+
+      .winning-line.x {
+        background-color: red;
+      }
+
+      .winning-line.o {
+        background-color: blue;
+      }
+
+      .winning-line.horizontal.row-0 {
+        width: 90%;
+        height: 6px;
+        top: 16.66%;
+        left: 5%;
+        transform: translateY(-50%);
+      }
+
+      .winning-line.horizontal.row-1 {
+        width: 90%;
+        height: 6px;
+        top: 50%;
+        left: 5%;
+        transform: translateY(-50%);
+      }
+
+      .winning-line.horizontal.row-2 {
+        width: 90%;
+        height: 6px;
+        top: 83.33%;
+        left: 5%;
+        transform: translateY(-50%);
+      }
+
+      .winning-line.vertical.col-0 {
+        width: 6px;
+        height: 90%;
+        left: 16.66%;
+        top: 5%;
+        transform: translateX(-50%);
+      }
+
+      .winning-line.vertical.col-1 {
+        width: 6px;
+        height: 90%;
+        left: 50%;
+        top: 5%;
+        transform: translateX(-50%);
+      }
+
+      .winning-line.vertical.col-2 {
+        width: 6px;
+        height: 90%;
+        left: 83.33%;
+        top: 5%;
+        transform: translateX(-50%);
+      }
+
+      .winning-line.diagonal-1 {
+        width: 90%;
+        height: 6px;
+        top: 50%;
+        left: 5%;
+        transform: translateY(-50%) rotate(45deg);
+        transform-origin: center;
+      }
+
+      .winning-line.diagonal-2 {
+        width: 90%;
+        height: 6px;
+        top: 50%;
+        left: 5%;
+        transform: translateY(-50%) rotate(-45deg);
+        transform-origin: center;
+      }
+
+      .mini-board.draw {
+        background: rgba(128, 128, 128, 0.2);
+      }
+
+      .mini-board-wrapper.won .mini-cell {
+        opacity: 0.3;
+      }
+
+      .message {
+        margin-top: 20px;
+        font-size: 1.2em;
+        font-weight: bold;
+        min-height: 30px;
+        color: white;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      .reset-btn {
+        margin-top: 20px;
+        padding: 12px 30px;
+        font-size: 1em;
+        background: #667eea;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: background 0.3s;
+      }
+
+      .reset-btn:hover {
+        background: #5568d3;
+      }
+    </style>
+  </head>
+  <body class="x" data-symbol="X">
+      <div class="container">
+      <h1>Ultimate Tic-Tac-Toe</h1>
+      <div class="meta-board-container">
+        <div class="meta-board" id="metaBoard"></div>
+      </div>
+      <div class="message" id="message"></div>
+      <button class="reset-btn" onclick="resetGame()">Reset Game</button>
+    </div>
+
+    <script>
+      let currentPlayer = 'x';
+      let gameOver = false;
+      
+      // Each mini board is a 3x3 grid (9 cells)
+      // We have 9 mini boards, so 9x9 = 81 total cells
+      // Structure: boards[miniBoardIndex][cellIndex]
+      let boards = Array(9).fill(null).map(() => Array(9).fill(''));
+      let miniBoardWinners = Array(9).fill(''); // 'x', 'o', 'draw', or ''
+
+      const metaBoardElement = document.getElementById('metaBoard');
+      const messageElement = document.getElementById('message');
+      const bodyElement = document.body;
+
+      // Initialize the meta board with 9 mini boards
+      function initializeGame() {
+        metaBoardElement.innerHTML = '';
+        
+        for (let miniBoardIndex = 0; miniBoardIndex < 9; miniBoardIndex++) {
+          const miniBoardWrapper = document.createElement('div');
+          miniBoardWrapper.className = 'mini-board-wrapper';
+          miniBoardWrapper.id = `mini-board-${miniBoardIndex}`;
+          
+          const miniBoard = document.createElement('div');
+          miniBoard.className = 'mini-board';
+          miniBoard.id = `mini-board-grid-${miniBoardIndex}`;
+          
+          // Create 9 cells for each mini board
+          for (let cellIndex = 0; cellIndex < 9; cellIndex++) {
+            const cell = document.createElement('button');
+            cell.className = 'mini-cell';
+            cell.id = `cell-${miniBoardIndex}-${cellIndex}`;
+            cell.onclick = () => handleCellClick(miniBoardIndex, cellIndex);
+            miniBoard.appendChild(cell);
+          }
+          
+          miniBoardWrapper.appendChild(miniBoard);
+          metaBoardElement.appendChild(miniBoardWrapper);
+        }
+      }
+
+      function handleCellClick(miniBoardIndex, cellIndex) {
+        if (gameOver || boards[miniBoardIndex][cellIndex] !== '' || miniBoardWinners[miniBoardIndex] !== '') {
+          return;
+        }
+
+        // Place the mark
+        boards[miniBoardIndex][cellIndex] = currentPlayer;
+        const cell = document.getElementById(`cell-${miniBoardIndex}-${cellIndex}`);
+        cell.textContent = currentPlayer.toUpperCase();
+        cell.className = `mini-cell ${currentPlayer}`;
+        cell.disabled = true;
+
+        // Check if this mini board has a winner
+        const miniWinnerResult = checkMiniBoardWinner(miniBoardIndex);
+        if (miniWinnerResult) {
+          miniBoardWinners[miniBoardIndex] = miniWinnerResult.winner;
+          displayMiniBoardWinner(miniBoardIndex, miniWinnerResult.winner, miniWinnerResult.pattern);
+          disableMiniBoard(miniBoardIndex);
+        } else if (checkMiniBoardDraw(miniBoardIndex)) {
+          miniBoardWinners[miniBoardIndex] = 'draw';
+          displayMiniBoardDraw(miniBoardIndex);
+          disableMiniBoard(miniBoardIndex);
+        }
+
+        // Check if overall game is won
+        const overallWinner = checkOverallWinner();
+        if (overallWinner) {
+          messageElement.textContent = `Player ${overallWinner.toUpperCase()} wins the game!`;
+          messageElement.style.color = overallWinner === 'x' ? 'red' : 'blue';
+          gameOver = true;
+          disableAllBoards();
+          return;
+        }
+
+        // Check if overall game is a draw
+        if (checkOverallDraw()) {
+          messageElement.textContent = "It's a draw!";
+          messageElement.style.color = '#333';
+          gameOver = true;
+          return;
+        }
+
+        // Switch players
+        currentPlayer = currentPlayer === 'x' ? 'o' : 'x';
+        updateCurrentPlayerDisplay();
+      }
+
+      function checkMiniBoardWinner(miniBoardIndex) {
+        const board = boards[miniBoardIndex];
+        const winPatterns = [
+          { pattern: [0, 1, 2], type: 'horizontal', row: 0 }, // top row
+          { pattern: [3, 4, 5], type: 'horizontal', row: 1 }, // middle row
+          { pattern: [6, 7, 8], type: 'horizontal', row: 2 }, // bottom row
+          { pattern: [0, 3, 6], type: 'vertical', col: 0 }, // left column
+          { pattern: [1, 4, 7], type: 'vertical', col: 1 }, // middle column
+          { pattern: [2, 5, 8], type: 'vertical', col: 2 }, // right column
+          { pattern: [0, 4, 8], type: 'diagonal-1' }, // top-left to bottom-right
+          { pattern: [2, 4, 6], type: 'diagonal-2' } // top-right to bottom-left
+        ];
+
+        for (let winInfo of winPatterns) {
+          const [a, b, c] = winInfo.pattern;
+          if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+            let patternClass = winInfo.type;
+            if (winInfo.type === 'horizontal' && winInfo.row !== undefined) {
+              patternClass = `horizontal row-${winInfo.row}`;
+            } else if (winInfo.type === 'vertical' && winInfo.col !== undefined) {
+              patternClass = `vertical col-${winInfo.col}`;
+            }
+            return {
+              winner: board[a],
+              pattern: patternClass,
+              winInfo: winInfo
+            };
+          }
+        }
+        return null;
+      }
+
+      function checkMiniBoardDraw(miniBoardIndex) {
+        return boards[miniBoardIndex].every(cell => cell !== '');
+      }
+
+      function checkOverallWinner() {
+        const winPatterns = [
+          [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
+          [0, 3, 6], [1, 4, 7], [2, 5, 8], // columns
+          [0, 4, 8], [2, 4, 6] // diagonals
+        ];
+
+        for (let pattern of winPatterns) {
+          const [a, b, c] = pattern;
+          const winnerA = miniBoardWinners[a];
+          const winnerB = miniBoardWinners[b];
+          const winnerC = miniBoardWinners[c];
+          
+          if (winnerA && winnerA === winnerB && winnerA === winnerC && winnerA !== 'draw') {
+            return winnerA;
+          }
+        }
+        return null;
+      }
+
+      function checkOverallDraw() {
+        return miniBoardWinners.every(winner => winner !== '');
+      }
+
+      function displayMiniBoardWinner(miniBoardIndex, winner, patternType) {
+        const miniBoardWrapper = document.getElementById(`mini-board-${miniBoardIndex}`);
+        const miniBoard = document.getElementById(`mini-board-grid-${miniBoardIndex}`);
+        
+        // Mark the wrapper as won to fade cells
+        miniBoardWrapper.classList.add('won');
+        
+        // Create the winning line
+        const winningLine = document.createElement('div');
+        winningLine.className = `winning-line ${winner} ${patternType}`;
+        miniBoard.appendChild(winningLine);
+        
+        // Create the large symbol display
+        const winnerDisplay = document.createElement('div');
+        winnerDisplay.className = `mini-board-winner ${winner}`;
+        winnerDisplay.textContent = winner.toUpperCase();
+        miniBoardWrapper.appendChild(winnerDisplay);
+      }
+
+      function displayMiniBoardDraw(miniBoardIndex) {
+        const miniBoardWrapper = document.getElementById(`mini-board-${miniBoardIndex}`);
+        miniBoardWrapper.classList.add('draw');
+      }
+
+      function disableMiniBoard(miniBoardIndex) {
+        for (let i = 0; i < 9; i++) {
+          const cell = document.getElementById(`cell-${miniBoardIndex}-${i}`);
+          if (cell) {
+            cell.disabled = true;
+          }
+        }
+      }
+
+      function disableAllBoards() {
+        for (let i = 0; i < 9; i++) {
+          disableMiniBoard(i);
+        }
+      }
+
+      function updateCurrentPlayerDisplay() {
+        bodyElement.className = currentPlayer;
+        bodyElement.setAttribute('data-symbol', currentPlayer.toUpperCase());
+      }
+
+      function resetGame() {
+        currentPlayer = 'x';
+        gameOver = false;
+        boards = Array(9).fill(null).map(() => Array(9).fill(''));
+        miniBoardWinners = Array(9).fill('');
+        messageElement.textContent = '';
+        initializeGame();
+        updateCurrentPlayerDisplay();
+      }
+
+      // Initialize the game on load
+      initializeGame();
+      updateCurrentPlayerDisplay();
+    </script>
+  </body>
+</html>
