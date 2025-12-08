@@ -123,6 +123,13 @@
         box-sizing: border-box;
         margin: 0;
         overflow: hidden;
+        transition: box-shadow 0.25s ease, background 0.25s ease;
+      }
+
+      .mini-board-wrapper.active {
+        box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.85);
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
       }
 
       /* Add major grid lines between mini boards - horizontal lines (between rows, not around edges) */
@@ -366,6 +373,7 @@
       // Structure: boards[miniBoardIndex][cellIndex]
       let boards = Array(9).fill(null).map(() => Array(9).fill(''));
       let miniBoardWinners = Array(9).fill(''); // 'x', 'o', 'draw', or ''
+      let activeMiniBoardIndex = null; // null means any board is allowed
 
       const metaBoardElement = document.getElementById('metaBoard');
       const messageElement = document.getElementById('message');
@@ -396,9 +404,18 @@
           miniBoardWrapper.appendChild(miniBoard);
           metaBoardElement.appendChild(miniBoardWrapper);
         }
+
+        // At the start, player can play anywhere
+        setActiveMiniBoard(activeMiniBoardIndex);
       }
 
       function handleCellClick(miniBoardIndex, cellIndex) {
+        // Enforce active mini-board rule (if one is set)
+        if (activeMiniBoardIndex !== null && miniBoardIndex !== activeMiniBoardIndex) {
+          // If a specific board is required, ignore clicks on others
+          return;
+        }
+
         if (gameOver || boards[miniBoardIndex][cellIndex] !== '' || miniBoardWinners[miniBoardIndex] !== '') {
           return;
         }
@@ -440,6 +457,16 @@
           return;
         }
 
+        // Determine which mini board the next player must play in
+        let nextActiveBoard = cellIndex;
+
+        // If that mini board is already won or full, allow next player to play anywhere
+        if (!isMiniBoardAvailable(nextActiveBoard)) {
+          nextActiveBoard = null;
+        }
+
+        setActiveMiniBoard(nextActiveBoard);
+
         // Switch players
         currentPlayer = currentPlayer === 'x' ? 'o' : 'x';
         updateCurrentPlayerDisplay();
@@ -479,6 +506,40 @@
 
       function checkMiniBoardDraw(miniBoardIndex) {
         return boards[miniBoardIndex].every(cell => cell !== '');
+      }
+
+      function isMiniBoardAvailable(miniBoardIndex) {
+        return miniBoardWinners[miniBoardIndex] === '' && !checkMiniBoardDraw(miniBoardIndex);
+      }
+
+      function setActiveMiniBoard(miniBoardIndex) {
+        activeMiniBoardIndex = miniBoardIndex;
+
+        for (let i = 0; i < 9; i++) {
+          const wrapper = document.getElementById(`mini-board-${i}`);
+          if (!wrapper) continue;
+
+          if (miniBoardIndex !== null && i === miniBoardIndex && isMiniBoardAvailable(i)) {
+            wrapper.classList.add('active');
+          } else {
+            wrapper.classList.remove('active');
+          }
+
+          for (let j = 0; j < 9; j++) {
+            const cell = document.getElementById(`cell-${i}-${j}`);
+            if (!cell) continue;
+
+            if (boards[i][j] !== '' || miniBoardWinners[i] !== '') {
+              cell.disabled = true;
+            } else if (miniBoardIndex === null) {
+              // Free to play on any available board
+              cell.disabled = false;
+            } else {
+              // Only cells in the active, available board are playable
+              cell.disabled = i !== miniBoardIndex || !isMiniBoardAvailable(i);
+            }
+          }
+        }
       }
 
       function checkOverallWinner() {
@@ -554,6 +615,7 @@
         gameOver = false;
         boards = Array(9).fill(null).map(() => Array(9).fill(''));
         miniBoardWinners = Array(9).fill('');
+        activeMiniBoardIndex = null;
         messageElement.textContent = '';
         initializeGame();
         updateCurrentPlayerDisplay();
