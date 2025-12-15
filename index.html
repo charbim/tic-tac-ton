@@ -352,6 +352,91 @@
       .reset-btn:hover {
         background: #5568d3;
       }
+
+      .leaderboard {
+        margin-top: 30px;
+        padding: 16px 20px;
+        border-radius: 12px;
+        background: rgba(0, 0, 0, 0.35);
+        color: white;
+        text-align: left;
+      }
+
+      .leaderboard.hidden {
+        display: none;
+      }
+
+      .leaderboard h2 {
+        font-size: 1.4em;
+        margin-bottom: 8px;
+      }
+
+      .leaderboard-subtitle {
+        font-size: 0.9em;
+        opacity: 0.8;
+        margin-bottom: 10px;
+      }
+
+      .leaderboard-prompt {
+        margin-top: 6px;
+        margin-bottom: 10px;
+        font-weight: 500;
+      }
+
+      .leaderboard-form {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+
+      .leaderboard-form input {
+        flex: 1;
+        padding: 8px 10px;
+        border-radius: 6px;
+        border: none;
+        font-size: 0.95em;
+      }
+
+      .leaderboard-form button {
+        padding: 8px 14px;
+        border-radius: 6px;
+        border: none;
+        background: #48bb78;
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 0.95em;
+        transition: background 0.2s ease;
+      }
+
+      .leaderboard-form button:hover {
+        background: #38a169;
+      }
+
+      .leaderboard-list ol {
+        list-style: decimal;
+        padding-left: 20px;
+      }
+
+      .leaderboard-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 2px 0;
+        font-size: 0.95em;
+      }
+
+      .leaderboard-name {
+        font-weight: 500;
+      }
+
+      .leaderboard-wins {
+        opacity: 0.85;
+      }
+
+      .leaderboard-empty {
+        font-size: 0.9em;
+        opacity: 0.8;
+      }
     </style>
   </head>
   <body class="x" data-symbol="X">
@@ -362,12 +447,43 @@
       </div>
       <div class="message" id="message"></div>
       <button class="reset-btn" onclick="resetGame()">Reset Game</button>
+      <div id="leaderboardSection" class="leaderboard hidden">
+        <h2>Leaderboard</h2>
+        <p class="leaderboard-subtitle">Scores are stored privately for this device only.</p>
+        <p id="leaderboardPrompt" class="leaderboard-prompt"></p>
+        <form id="leaderboardForm" class="leaderboard-form">
+          <input
+            id="playerNameInput"
+            type="text"
+            name="playerName"
+            placeholder="Enter winner's name"
+            autocomplete="off"
+            required
+          />
+          <button type="submit">Save win</button>
+        </form>
+        <div id="leaderboardList" class="leaderboard-list"></div>
+      </div>
     </div>
 
-    <script>
+    <script type="module">
+      import { db, ensureAnonUser } from '/src/firebase.js'
+      import {
+        collection,
+        doc,
+        getDocs,
+        query,
+        orderBy,
+        setDoc,
+        increment,
+      } from 'firebase/firestore'
+
       let currentPlayer = 'x';
       let gameOver = false;
-      
+      let currentUser = null;
+      let leaderboardEntries = [];
+      let lastGameWinnerSymbol = null;
+
       // Each mini board is a 3x3 grid (9 cells)
       // We have 9 mini boards, so 9x9 = 81 total cells
       // Structure: boards[miniBoardIndex][cellIndex]
@@ -378,6 +494,117 @@
       const metaBoardElement = document.getElementById('metaBoard');
       const messageElement = document.getElementById('message');
       const bodyElement = document.body;
+      const leaderboardSection = document.getElementById('leaderboardSection');
+      const leaderboardPrompt = document.getElementById('leaderboardPrompt');
+      const leaderboardForm = document.getElementById('leaderboardForm');
+      const playerNameInput = document.getElementById('playerNameInput');
+      const leaderboardList = document.getElementById('leaderboardList');
+
+      async function initFirebaseAndLeaderboard() {
+        try {
+          currentUser = await ensureAnonUser();
+          await loadLeaderboard();
+        } catch (error) {
+          console.error('Failed to initialize Firebase leaderboard', error);
+        }
+      }
+
+      async function loadLeaderboard() {
+        if (!currentUser || !leaderboardList) return;
+
+        try {
+          const entriesRef = collection(db, 'leaderboards', currentUser.uid, 'entries');
+          const q = query(entriesRef, orderBy('wins', 'desc'), orderBy('name'));
+          const snapshot = await getDocs(q);
+          leaderboardEntries = snapshot.docs.map((docSnap) => ({
+            id: docSnap.id,
+            ...docSnap.data(),
+          }));
+          renderLeaderboard();
+        } catch (error) {
+          console.error('Failed to load leaderboard', error);
+        }
+      }
+
+      function renderLeaderboard() {
+        if (!leaderboardList) return;
+
+        if (!leaderboardEntries.length) {
+          leaderboardList.innerHTML = '<p class=\"leaderboard-empty\">No wins saved yet.</p>';
+          return;
+        }
+
+        const list = document.createElement('ol');
+        list.className = 'leaderboard-items';
+
+        leaderboardEntries.forEach((entry) => {
+          const li = document.createElement('li');
+          li.className = 'leaderboard-item';
+          li.innerHTML = `
+            <span class="leaderboard-name">${entry.name}</span>
+            <span class="leaderboard-wins">${entry.wins} win${entry.wins === 1 ? '' : 's'}</span>
+          `;
+          list.appendChild(li);
+        });
+
+        leaderboardList.innerHTML = '';
+        leaderboardList.appendChild(list);
+      }
+
+      async function saveWinForName(name) {
+        if (!currentUser) return;
+
+        const trimmedName = name.trim();
+        if (!trimmedName) return;
+
+        // Use a safe document id based on the name so that
+        // the same name always maps to the same entry.
+        let safeId = trimmedName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-_]/g, '');
+        if (!safeId) {
+          safeId = 'player';
+        }
+
+        try {
+          const entryRef = doc(db, 'leaderboards', currentUser.uid, 'entries', safeId);
+          await setDoc(
+            entryRef,
+            {
+              name: trimmedName,
+              wins: increment(1),
+            },
+            { merge: true },
+          );
+          await loadLeaderboard();
+        } catch (error) {
+          console.error('Failed to save win', error);
+        }
+      }
+
+      function showNameEntry(winnerSymbol) {
+        lastGameWinnerSymbol = winnerSymbol;
+
+        if (leaderboardSection) {
+          leaderboardSection.classList.remove('hidden');
+        }
+        if (leaderboardPrompt) {
+          leaderboardPrompt.textContent = `Player ${winnerSymbol.toUpperCase()} won! Enter a name to save this win:`;
+        }
+        if (playerNameInput) {
+          playerNameInput.value = '';
+          playerNameInput.focus();
+        }
+      }
+
+      if (leaderboardForm) {
+        leaderboardForm.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const name = playerNameInput ? playerNameInput.value : '';
+          await saveWinForName(name);
+          if (playerNameInput) {
+            playerNameInput.value = '';
+          }
+        });
+      }
 
       // Initialize the meta board with 9 mini boards
       function initializeGame() {
@@ -446,6 +673,7 @@
           messageElement.style.color = overallWinner === 'x' ? 'red' : 'blue';
           gameOver = true;
           disableAllBoards();
+          showNameEntry(overallWinner);
           return;
         }
 
@@ -624,6 +852,7 @@
       // Initialize the game on load
       initializeGame();
       updateCurrentPlayerDisplay();
+      initFirebaseAndLeaderboard();
     </script>
   </body>
 </html>
