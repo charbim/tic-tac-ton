@@ -473,7 +473,7 @@
         doc,
         getDocs,
         query,
-        orderBy,
+        where,
         setDoc,
         increment,
       } from 'firebase/firestore'
@@ -513,13 +513,16 @@
         if (!currentUser || !leaderboardList) return;
 
         try {
-          const entriesRef = collection(db, 'leaderboards', currentUser.uid, 'entries');
-          const q = query(entriesRef, orderBy('wins', 'desc'), orderBy('name'));
+          const entriesRef = collection(db, 'leaderboard');
+          const q = query(entriesRef, where('userId', '==', currentUser.uid));
           const snapshot = await getDocs(q);
           leaderboardEntries = snapshot.docs.map((docSnap) => ({
             id: docSnap.id,
             ...docSnap.data(),
-          }));
+          })).sort((a, b) => {
+            if (b.wins !== a.wins) return b.wins - a.wins;
+            return a.name.localeCompare(b.name);
+          });
           renderLeaderboard();
         } catch (error) {
           console.error('Failed to load leaderboard', error);
@@ -557,19 +560,17 @@
         const trimmedName = name.trim();
         if (!trimmedName) return;
 
-        // Use a safe document id based on the name so that
-        // the same name always maps to the same entry.
-        let safeId = trimmedName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-_]/g, '');
-        if (!safeId) {
-          safeId = 'player';
-        }
+        // Use a safe document id that is unique per user+name
+        const baseId = trimmedName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-_]/g, '') || 'player';
+        const safeId = `${currentUser.uid}__${baseId}`;
 
         try {
-          const entryRef = doc(db, 'leaderboards', currentUser.uid, 'entries', safeId);
+          const entryRef = doc(db, 'leaderboard', safeId);
           await setDoc(
             entryRef,
             {
               name: trimmedName,
+              userId: currentUser.uid,
               wins: increment(1),
             },
             { merge: true },

@@ -21,15 +21,37 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 }
 
-const app = initializeApp(firebaseConfig)
+// Only initialize Firebase if the required config values are present.
+// This way the game still works locally even if you haven't set up
+// your Firebase environment variables yet.
+const hasFirebaseConfig =
+  firebaseConfig.apiKey &&
+  firebaseConfig.authDomain &&
+  firebaseConfig.projectId &&
+  firebaseConfig.appId
 
-export const db = getFirestore(app)
-export const auth = getAuth(app)
+let app = null
+let db = null
+let auth = null
+
+if (hasFirebaseConfig) {
+  app = initializeApp(firebaseConfig)
+  db = getFirestore(app)
+  auth = getAuth(app)
+}
+
+export { db, auth }
 
 // Ensure this device is signed in anonymously so it gets
 // its own private user id. Leaderboard data will be stored
 // per anonymous user, so other devices cannot see it.
 export function ensureAnonUser() {
+  // If Firebase isn't configured, just resolve with null so callers
+  // can safely no-op without breaking the game board.
+  if (!auth) {
+    return Promise.resolve(null)
+  }
+
   return new Promise((resolve, reject) => {
     const unsubscribe = onAuthStateChanged(
       auth,
@@ -40,7 +62,19 @@ export function ensureAnonUser() {
         } else {
           signInAnonymously(auth).catch((error) => {
             unsubscribe()
-            reject(error)
+            // If anonymous auth isn't enabled or not configured in Firebase,
+            // log a warning and resolve with null so the game still works
+            // (only the leaderboard will be disabled).
+            if (
+              error?.code === 'auth/operation-not-allowed' ||
+              error?.code === 'auth/configuration-not-found'
+            ) {
+              // eslint-disable-next-line no-console
+              console.warn('Firebase anonymous auth not enabled; leaderboard disabled.', error)
+              resolve(null)
+            } else {
+              reject(error)
+            }
           })
         }
       },
@@ -51,3 +85,5 @@ export function ensureAnonUser() {
     )
   })
 }
+
+

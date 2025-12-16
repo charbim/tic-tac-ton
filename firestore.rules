@@ -1,0 +1,21 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Per-device leaderboard stored in a single top-level collection
+    // `leaderboard`, one document per (userId + player name).
+    match /leaderboard/{entryId} {
+      // Allow create only if the user is writing their own data
+      allow create: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid;
+
+      // Allow read/update/delete only on documents owned by the user
+      allow read, update, delete: if request.auth != null
+                                  && resource.data.userId == request.auth.uid;
+    }
+
+    // Deny all other access by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
