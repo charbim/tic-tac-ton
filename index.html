@@ -185,6 +185,15 @@
         height: 100%;
       }
 
+      /* Turn-based cursor: red X on X's turn, blue O on O's turn */
+      body.x .mini-cell:not(:disabled) {
+        cursor: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='32'%20height='32'%20viewBox='0%200%2032%2032'%3E%3Cpath%20d='M8%208L24%2024M24%208L8%2024'%20stroke='%23000000'%20stroke-opacity='0.85'%20stroke-width='7'%20stroke-linecap='round'/%3E%3Cpath%20d='M8%208L24%2024M24%208L8%2024'%20stroke='%23b01212'%20stroke-width='4'%20stroke-linecap='round'/%3E%3C/svg%3E") 16 16, pointer;
+      }
+
+      body.o .mini-cell:not(:disabled) {
+        cursor: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='32'%20height='32'%20viewBox='0%200%2032%2032'%3E%3Ccircle%20cx='16'%20cy='16'%20r='9'%20fill='none'%20stroke='%23000000'%20stroke-opacity='0.85'%20stroke-width='7'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='9'%20fill='none'%20stroke='%230a45cc'%20stroke-width='4'/%3E%3C/svg%3E") 16 16, pointer;
+      }
+
       /* Remove right border on rightmost cells of each mini board */
       .mini-cell:nth-child(3n) {
         border-right: none;
@@ -353,22 +362,108 @@
         background: #5568d3;
       }
 
-      .leaderboard {
-        margin-top: 30px;
-        padding: 16px 20px;
-        border-radius: 12px;
+      .hidden {
+        display: none !important;
+      }
+
+      .scores-btn {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 50;
+        padding: 10px 14px;
+        font-size: 0.95em;
         background: rgba(0, 0, 0, 0.35);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 700;
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+      }
+
+      .scores-btn:hover {
+        transform: translateY(-1px);
+        background: rgba(0, 0, 0, 0.45);
+        border-color: rgba(255, 255, 255, 0.35);
+      }
+
+      .modal {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: grid;
+        place-items: center;
+        padding: 20px;
+      }
+
+      .modal-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+      }
+
+      .modal-panel {
+        position: relative;
+        width: min(640px, 100%);
+        max-height: min(80vh, 720px);
+        overflow: auto;
+        border-radius: 14px;
+        background: rgba(20, 20, 20, 0.85);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        box-shadow: 0 20px 70px rgba(0, 0, 0, 0.55);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+      }
+
+      .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px 0 16px;
+      }
+
+      .modal-title {
+        font-size: 1.15em;
+        font-weight: 800;
+        letter-spacing: 0.2px;
+      }
+
+      .modal-close {
+        appearance: none;
+        border: none;
+        background: rgba(255, 255, 255, 0.12);
+        color: white;
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 20px;
+        line-height: 1;
+        display: grid;
+        place-items: center;
+        transition: background 0.15s ease;
+      }
+
+      .modal-close:hover {
+        background: rgba(255, 255, 255, 0.18);
+      }
+
+      .leaderboard {
+        margin-top: 10px;
+        padding: 12px 16px 16px 16px;
+        border-radius: 12px;
+        background: transparent;
         color: white;
         text-align: left;
       }
 
-      .leaderboard.hidden {
-        display: none;
-      }
-
       .leaderboard h2 {
-        font-size: 1.4em;
-        margin-bottom: 8px;
+        display: none; /* title lives in modal header now */
       }
 
       .leaderboard-subtitle {
@@ -440,6 +535,9 @@
     </style>
   </head>
   <body class="x" data-symbol="X">
+      <button id="scoresButton" class="scores-btn" type="button" aria-haspopup="dialog" aria-controls="leaderboardModal">
+        Scores
+      </button>
       <div class="container">
       <h1>Ultimate Tic-Tac-Toe</h1>
       <div class="meta-board-container">
@@ -447,22 +545,32 @@
       </div>
       <div class="message" id="message"></div>
       <button class="reset-btn" onclick="resetGame()">Reset Game</button>
-      <div id="leaderboardSection" class="leaderboard hidden">
-        <h2>Leaderboard</h2>
-        <p class="leaderboard-subtitle">Scores are stored privately for this device only.</p>
-        <p id="leaderboardPrompt" class="leaderboard-prompt"></p>
-        <form id="leaderboardForm" class="leaderboard-form">
-          <input
-            id="playerNameInput"
-            type="text"
-            name="playerName"
-            placeholder="Enter winner's name"
-            autocomplete="off"
-            required
-          />
-          <button type="submit">Save win</button>
-        </form>
-        <div id="leaderboardList" class="leaderboard-list"></div>
+    </div>
+
+    <div id="leaderboardModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="leaderboardModalTitle" aria-hidden="true">
+      <div class="modal-backdrop" data-modal-close></div>
+      <div class="modal-panel">
+        <div class="modal-header">
+          <div id="leaderboardModalTitle" class="modal-title">Scores</div>
+          <button id="leaderboardClose" class="modal-close" type="button" aria-label="Close scores">×</button>
+        </div>
+        <div id="leaderboardSection" class="leaderboard">
+          <h2>Leaderboard</h2>
+          <p class="leaderboard-subtitle">Scores are stored privately for this device only.</p>
+          <p id="leaderboardPrompt" class="leaderboard-prompt hidden"></p>
+          <form id="leaderboardForm" class="leaderboard-form hidden">
+            <input
+              id="playerNameInput"
+              type="text"
+              name="playerName"
+              placeholder="Enter winner's name"
+              autocomplete="off"
+              required
+            />
+            <button type="submit">Save win</button>
+          </form>
+          <div id="leaderboardList" class="leaderboard-list"></div>
+        </div>
       </div>
     </div>
 
@@ -494,11 +602,131 @@
       const metaBoardElement = document.getElementById('metaBoard');
       const messageElement = document.getElementById('message');
       const bodyElement = document.body;
+      const scoresButton = document.getElementById('scoresButton');
+      const leaderboardModal = document.getElementById('leaderboardModal');
+      const leaderboardModalTitle = document.getElementById('leaderboardModalTitle');
+      const leaderboardClose = document.getElementById('leaderboardClose');
       const leaderboardSection = document.getElementById('leaderboardSection');
       const leaderboardPrompt = document.getElementById('leaderboardPrompt');
       const leaderboardForm = document.getElementById('leaderboardForm');
       const playerNameInput = document.getElementById('playerNameInput');
       const leaderboardList = document.getElementById('leaderboardList');
+      const leaderboardSubmitButton = leaderboardForm
+        ? leaderboardForm.querySelector('button[type="submit"]')
+        : null;
+
+      // Modal is used for two flows:
+      // - viewing scores ("scores")
+      // - submitting a win after a game finishes ("submitWin")
+      let leaderboardModalMode = 'scores';
+      let winSubmissionConsumed = false;
+
+      function openLeaderboardModal({ focusNameInput = false } = {}) {
+        if (!leaderboardModal) return;
+        leaderboardModal.classList.remove('hidden');
+        leaderboardModal.setAttribute('aria-hidden', 'false');
+        if (focusNameInput && playerNameInput) {
+          // delay focus until the modal is visible
+          setTimeout(() => playerNameInput.focus(), 0);
+        }
+      }
+
+      function closeLeaderboardModal() {
+        if (!leaderboardModal) return;
+        leaderboardModal.classList.add('hidden');
+        leaderboardModal.setAttribute('aria-hidden', 'true');
+      }
+
+      function setLeaderboardModalToScoresView() {
+        leaderboardModalMode = 'scores';
+        winSubmissionConsumed = false;
+
+        if (leaderboardModalTitle) leaderboardModalTitle.textContent = 'Scores';
+        if (leaderboardPrompt) {
+          leaderboardPrompt.textContent = '';
+          leaderboardPrompt.classList.add('hidden');
+        }
+        if (leaderboardForm) leaderboardForm.classList.add('hidden');
+        if (leaderboardList) leaderboardList.classList.remove('hidden');
+        if (playerNameInput) playerNameInput.disabled = false;
+        if (leaderboardSubmitButton) {
+          leaderboardSubmitButton.disabled = false;
+          leaderboardSubmitButton.textContent = 'Save win';
+        }
+      }
+
+      function setLeaderboardModalToWinSubmissionView(winnerSymbol) {
+        leaderboardModalMode = 'submitWin';
+        winSubmissionConsumed = false;
+
+        if (leaderboardModalTitle) leaderboardModalTitle.textContent = 'Submit win';
+        if (leaderboardList) leaderboardList.classList.add('hidden');
+
+        if (leaderboardPrompt) {
+          leaderboardPrompt.textContent = `Player ${winnerSymbol.toUpperCase()} won! Enter a name to save this win:`;
+          leaderboardPrompt.classList.remove('hidden');
+        }
+        if (leaderboardForm) leaderboardForm.classList.remove('hidden');
+        if (playerNameInput) {
+          playerNameInput.disabled = false;
+          playerNameInput.value = '';
+        }
+        if (leaderboardSubmitButton) {
+          leaderboardSubmitButton.disabled = false;
+          leaderboardSubmitButton.textContent = 'Save win';
+        }
+      }
+
+      function finishWinSubmissionFlow({ resetBoard } = { resetBoard: true }) {
+        // Restore modal back to scores view for the next time it's opened.
+        setLeaderboardModalToScoresView();
+        closeLeaderboardModal();
+        if (resetBoard) resetGame();
+      }
+
+      if (scoresButton) {
+        scoresButton.addEventListener('click', () => {
+          // Viewing scores should always show the scores view.
+          setLeaderboardModalToScoresView();
+          openLeaderboardModal();
+        });
+      }
+
+      if (leaderboardClose) {
+        leaderboardClose.addEventListener('click', () => {
+          // If the game just ended, the X acts as "bypass" and resets the board.
+          if (leaderboardModalMode === 'submitWin') {
+            finishWinSubmissionFlow({ resetBoard: true });
+            return;
+          }
+          closeLeaderboardModal();
+        });
+      }
+
+      if (leaderboardModal) {
+        leaderboardModal.addEventListener('click', (event) => {
+          const target = event.target;
+          if (target && target instanceof HTMLElement && target.hasAttribute('data-modal-close')) {
+            // Backdrop click: bypass in submit flow, normal close otherwise.
+            if (leaderboardModalMode === 'submitWin') {
+              finishWinSubmissionFlow({ resetBoard: true });
+              return;
+            }
+            closeLeaderboardModal();
+          }
+        });
+      }
+
+      window.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape') return;
+        if (!leaderboardModal || leaderboardModal.classList.contains('hidden')) return;
+        // Escape: bypass in submit flow, normal close otherwise.
+        if (leaderboardModalMode === 'submitWin') {
+          finishWinSubmissionFlow({ resetBoard: true });
+          return;
+        }
+        closeLeaderboardModal();
+      });
 
       async function initFirebaseAndLeaderboard() {
         try {
@@ -583,27 +811,27 @@
 
       function showNameEntry(winnerSymbol) {
         lastGameWinnerSymbol = winnerSymbol;
-
-        if (leaderboardSection) {
-          leaderboardSection.classList.remove('hidden');
-        }
-        if (leaderboardPrompt) {
-          leaderboardPrompt.textContent = `Player ${winnerSymbol.toUpperCase()} won! Enter a name to save this win:`;
-        }
-        if (playerNameInput) {
-          playerNameInput.value = '';
-          playerNameInput.focus();
-        }
+        setLeaderboardModalToWinSubmissionView(winnerSymbol);
+        openLeaderboardModal({ focusNameInput: true });
       }
 
       if (leaderboardForm) {
         leaderboardForm.addEventListener('submit', async (event) => {
           event.preventDefault();
+          // Only allow one submission per finished game.
+          if (leaderboardModalMode !== 'submitWin' || winSubmissionConsumed) return;
+          winSubmissionConsumed = true;
+          if (playerNameInput) playerNameInput.disabled = true;
+          if (leaderboardSubmitButton) {
+            leaderboardSubmitButton.disabled = true;
+            leaderboardSubmitButton.textContent = 'Saved';
+          }
+
           const name = playerNameInput ? playerNameInput.value : '';
           await saveWinForName(name);
-          if (playerNameInput) {
-            playerNameInput.value = '';
-          }
+
+          // After submit, close the popup and reset the board.
+          finishWinSubmissionFlow({ resetBoard: true });
         });
       }
 
@@ -854,6 +1082,9 @@
       initializeGame();
       updateCurrentPlayerDisplay();
       initFirebaseAndLeaderboard();
+
+      // Make resetGame callable from the inline HTML button handler.
+      window.resetGame = resetGame;
     </script>
   </body>
 </html>
