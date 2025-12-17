@@ -390,6 +390,125 @@
         border-color: rgba(255, 255, 255, 0.35);
       }
 
+      .auth-btn {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        z-index: 50;
+        padding: 10px 14px;
+        font-size: 0.95em;
+        background: rgba(0, 0, 0, 0.35);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 700;
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+      }
+
+      .auth-btn:hover {
+        transform: translateY(-1px);
+        background: rgba(0, 0, 0, 0.45);
+        border-color: rgba(255, 255, 255, 0.35);
+      }
+
+      .auth-btn[disabled] {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .auth {
+        padding: 10px 16px 18px 16px;
+      }
+
+      .auth-subtitle {
+        margin-top: 6px;
+        opacity: 0.85;
+        font-size: 0.95em;
+        line-height: 1.35;
+      }
+
+      .auth-mode-toggle {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .auth-mode-toggle button {
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(255, 255, 255, 0.08);
+        color: white;
+        cursor: pointer;
+        font-weight: 700;
+      }
+
+      .auth-mode-toggle button[aria-pressed="true"] {
+        background: rgba(255, 255, 255, 0.18);
+        border-color: rgba(255, 255, 255, 0.28);
+      }
+
+      .auth-form {
+        display: grid;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .auth-form input {
+        width: 100%;
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(255, 255, 255, 0.08);
+        color: white;
+        font-size: 1em;
+        outline: none;
+      }
+
+      .auth-form input::placeholder {
+        color: rgba(255, 255, 255, 0.7);
+      }
+
+      .auth-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 12px;
+      }
+
+      .auth-actions button {
+        padding: 10px 14px;
+        border-radius: 12px;
+        border: none;
+        cursor: pointer;
+        font-weight: 800;
+      }
+
+      .auth-actions .auth-primary {
+        background: rgba(255, 255, 255, 0.92);
+        color: rgba(0, 0, 0, 0.9);
+      }
+
+      .auth-actions .auth-secondary {
+        background: rgba(0, 0, 0, 0.35);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+      }
+
+      .auth-error {
+        margin-top: 12px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 80, 80, 0.35);
+        background: rgba(255, 80, 80, 0.14);
+        color: rgba(255, 225, 225, 0.98);
+        font-size: 0.95em;
+        line-height: 1.35;
+      }
+
       .modal {
         position: fixed;
         inset: 0;
@@ -535,6 +654,9 @@
     </style>
   </head>
   <body class="x" data-symbol="X">
+      <button id="authButton" class="auth-btn" type="button" aria-haspopup="dialog" aria-controls="authModal">
+        Sign in
+      </button>
       <button id="scoresButton" class="scores-btn" type="button" aria-haspopup="dialog" aria-controls="leaderboardModal">
         Scores
       </button>
@@ -556,7 +678,7 @@
         </div>
         <div id="leaderboardSection" class="leaderboard">
           <h2>Leaderboard</h2>
-          <p class="leaderboard-subtitle">Scores are stored privately for this device only.</p>
+          <p id="leaderboardSubtitle" class="leaderboard-subtitle">Scores are stored privately for this device only.</p>
           <p id="leaderboardPrompt" class="leaderboard-prompt hidden"></p>
           <form id="leaderboardForm" class="leaderboard-form hidden">
             <input
@@ -574,8 +696,49 @@
       </div>
     </div>
 
+    <div id="authModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="authModalTitle" aria-hidden="true">
+      <div class="modal-backdrop" data-modal-close="auth"></div>
+      <div class="modal-panel">
+        <div class="modal-header">
+          <div id="authModalTitle" class="modal-title">Account</div>
+          <button id="authClose" class="modal-close" type="button" aria-label="Close account">×</button>
+        </div>
+        <div class="auth">
+          <div id="authStatusText" class="auth-subtitle"></div>
+          <div class="auth-mode-toggle" role="group" aria-label="Account mode">
+            <button id="authModeSignIn" type="button" aria-pressed="true">Sign in</button>
+            <button id="authModeCreate" type="button" aria-pressed="false">Create account</button>
+          </div>
+          <form id="authForm" class="auth-form">
+            <input
+              id="authUsername"
+              type="text"
+              placeholder="Username"
+              autocomplete="username"
+              required
+            />
+            <input
+              id="authPassword"
+              type="password"
+              placeholder="Password"
+              autocomplete="current-password"
+              required
+            />
+            <div class="auth-actions">
+              <button id="authSubmitButton" class="auth-primary" type="submit">Sign in</button>
+              <button id="authSignOutButton" class="auth-secondary hidden" type="button">Sign out</button>
+            </div>
+          </form>
+          <div id="authError" class="auth-error hidden"></div>
+          <div class="auth-subtitle" style="margin-top: 12px;">
+            Accounts are stored in Firebase and work across devices. (This project treats “username” as your login.)
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script type="module">
-      import { db, ensureAnonUser } from '/src/firebase.js'
+      import { auth, db, ensureAnonUser } from '/src/firebase.js'
       import {
         collection,
         doc,
@@ -585,6 +748,15 @@
         setDoc,
         increment,
       } from 'firebase/firestore'
+      import {
+        EmailAuthProvider,
+        createUserWithEmailAndPassword,
+        linkWithCredential,
+        onAuthStateChanged,
+        signInWithEmailAndPassword,
+        signOut,
+        updateProfile,
+      } from 'firebase/auth'
 
       let currentPlayer = 'x';
       let gameOver = false;
@@ -607,6 +779,7 @@
       const leaderboardModalTitle = document.getElementById('leaderboardModalTitle');
       const leaderboardClose = document.getElementById('leaderboardClose');
       const leaderboardSection = document.getElementById('leaderboardSection');
+      const leaderboardSubtitle = document.getElementById('leaderboardSubtitle');
       const leaderboardPrompt = document.getElementById('leaderboardPrompt');
       const leaderboardForm = document.getElementById('leaderboardForm');
       const playerNameInput = document.getElementById('playerNameInput');
@@ -614,6 +787,117 @@
       const leaderboardSubmitButton = leaderboardForm
         ? leaderboardForm.querySelector('button[type="submit"]')
         : null;
+
+      const authButton = document.getElementById('authButton');
+      const authModal = document.getElementById('authModal');
+      const authClose = document.getElementById('authClose');
+      const authModeSignIn = document.getElementById('authModeSignIn');
+      const authModeCreate = document.getElementById('authModeCreate');
+      const authForm = document.getElementById('authForm');
+      const authUsername = document.getElementById('authUsername');
+      const authPassword = document.getElementById('authPassword');
+      const authSubmitButton = document.getElementById('authSubmitButton');
+      const authSignOutButton = document.getElementById('authSignOutButton');
+      const authError = document.getElementById('authError');
+      const authStatusText = document.getElementById('authStatusText');
+
+      let authMode = 'signIn'; // 'signIn' | 'create'
+
+      function setAuthError(message) {
+        if (!authError) return;
+        if (!message) {
+          authError.textContent = '';
+          authError.classList.add('hidden');
+          return;
+        }
+        authError.textContent = message;
+        authError.classList.remove('hidden');
+      }
+
+      function usernameToEmail(username) {
+        const raw = (username || '').trim().toLowerCase();
+        const cleaned = raw.replace(/[^a-z0-9._-]/g, '_');
+        if (!/[a-z0-9]/.test(cleaned)) return null;
+        return `${cleaned}@tic-tac-ton.invalid`;
+      }
+
+      function displayUsernameForUser(user) {
+        if (!user) return '';
+        if (user.displayName) return user.displayName;
+        const email = user.email || '';
+        const localPart = email.split('@')[0] || '';
+        return localPart || 'Account';
+      }
+
+      function setAuthMode(nextMode) {
+        authMode = nextMode;
+        setAuthError('');
+
+        const isCreate = authMode === 'create';
+        if (authModeSignIn) authModeSignIn.setAttribute('aria-pressed', String(!isCreate));
+        if (authModeCreate) authModeCreate.setAttribute('aria-pressed', String(isCreate));
+
+        if (authSubmitButton) authSubmitButton.textContent = isCreate ? 'Create account' : 'Sign in';
+        if (authPassword) authPassword.autocomplete = isCreate ? 'new-password' : 'current-password';
+      }
+
+      function openAuthModal() {
+        if (!authModal) return;
+        setAuthError('');
+        authModal.classList.remove('hidden');
+        authModal.setAttribute('aria-hidden', 'false');
+        setTimeout(() => {
+          if (authUsername) authUsername.focus();
+        }, 0);
+      }
+
+      function closeAuthModal() {
+        if (!authModal) return;
+        authModal.classList.add('hidden');
+        authModal.setAttribute('aria-hidden', 'true');
+        setAuthError('');
+      }
+
+      function updateLeaderboardSubtitleForUser(user) {
+        if (!leaderboardSubtitle) return;
+        if (!user || user.isAnonymous) {
+          leaderboardSubtitle.textContent = 'Scores are stored privately for this device only.';
+          return;
+        }
+        leaderboardSubtitle.textContent = 'Scores are synced to your account across devices.';
+      }
+
+      function updateAuthUiForUser(user) {
+        const firebaseReady = Boolean(auth);
+        if (authButton) {
+          authButton.disabled = !firebaseReady;
+          if (!firebaseReady) {
+            authButton.textContent = 'Sign in (disabled)';
+          } else if (!user || user.isAnonymous) {
+            authButton.textContent = 'Sign in';
+          } else {
+            authButton.textContent = displayUsernameForUser(user);
+          }
+        }
+
+        if (authStatusText) {
+          if (!firebaseReady) {
+            authStatusText.textContent =
+              'Firebase is not configured. Add your Firebase keys in a .env.local file to enable sign-in.';
+          } else if (!user) {
+            authStatusText.textContent = 'Not signed in.';
+          } else if (user.isAnonymous) {
+            authStatusText.textContent = 'You are currently playing anonymously (device-only).';
+          } else {
+            authStatusText.textContent = `Signed in as ${displayUsernameForUser(user)}.`;
+          }
+        }
+
+        if (authSignOutButton) {
+          if (user && !user.isAnonymous) authSignOutButton.classList.remove('hidden');
+          else authSignOutButton.classList.add('hidden');
+        }
+      }
 
       // Modal is used for two flows:
       // - viewing scores ("scores")
@@ -717,8 +1001,127 @@
         });
       }
 
+      if (authButton) {
+        authButton.addEventListener('click', () => openAuthModal());
+      }
+
+      if (authClose) {
+        authClose.addEventListener('click', () => closeAuthModal());
+      }
+
+      if (authModal) {
+        authModal.addEventListener('click', (event) => {
+          const target = event.target;
+          if (
+            target &&
+            target instanceof HTMLElement &&
+            target.getAttribute('data-modal-close') === 'auth'
+          ) {
+            closeAuthModal();
+          }
+        });
+      }
+
+      if (authModeSignIn) authModeSignIn.addEventListener('click', () => setAuthMode('signIn'));
+      if (authModeCreate) authModeCreate.addEventListener('click', () => setAuthMode('create'));
+
+      if (authForm) {
+        authForm.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          setAuthError('');
+
+          if (!auth) {
+            setAuthError('Firebase is not configured; sign-in is disabled.');
+            return;
+          }
+
+          const username = authUsername ? authUsername.value.trim() : '';
+          const password = authPassword ? authPassword.value : '';
+          if (!username) {
+            setAuthError('Please enter a username.');
+            return;
+          }
+          if (!password || password.length < 6) {
+            setAuthError('Password must be at least 6 characters.');
+            return;
+          }
+
+          const email = usernameToEmail(username);
+          if (!email) {
+            setAuthError('Username must include at least one letter or number.');
+            return;
+          }
+
+          try {
+            if (authMode === 'create') {
+              const existingUser = auth.currentUser;
+              if (existingUser && existingUser.isAnonymous) {
+                const credential = EmailAuthProvider.credential(email, password);
+                const userCredential = await linkWithCredential(existingUser, credential);
+                await updateProfile(userCredential.user, { displayName: username });
+              } else {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                await updateProfile(userCredential.user, { displayName: username });
+              }
+            } else {
+              await signInWithEmailAndPassword(auth, email, password);
+            }
+
+            closeAuthModal();
+          } catch (error) {
+            const code = error?.code || '';
+            if (code === 'auth/email-already-in-use') {
+              setAuthError('That username is already taken. Try signing in instead.');
+            } else if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+              setAuthError('Incorrect username or password.');
+            } else if (code === 'auth/user-not-found') {
+              setAuthError('Account not found. Try “Create account”.');
+            } else if (code === 'auth/operation-not-allowed') {
+              setAuthError('Email/Password sign-in is not enabled in Firebase Auth for this project.');
+            } else {
+              setAuthError(`Sign-in failed: ${error?.message || 'Unknown error'}`);
+            }
+          }
+        });
+      }
+
+      if (authSignOutButton) {
+        authSignOutButton.addEventListener('click', async () => {
+          setAuthError('');
+          if (!auth) return;
+          try {
+            await signOut(auth);
+            // Return to anonymous so leaderboard still works immediately.
+            currentUser = await ensureAnonUser();
+            updateAuthUiForUser(currentUser);
+            updateLeaderboardSubtitleForUser(currentUser);
+            await loadLeaderboard();
+            closeAuthModal();
+          } catch (error) {
+            setAuthError(`Sign out failed: ${error?.message || 'Unknown error'}`);
+          }
+        });
+      }
+
+      if (auth) {
+        onAuthStateChanged(auth, async (user) => {
+          currentUser = user;
+          updateAuthUiForUser(user);
+          updateLeaderboardSubtitleForUser(user);
+          await loadLeaderboard();
+        });
+      } else {
+        updateAuthUiForUser(null);
+        updateLeaderboardSubtitleForUser(null);
+      }
+
       window.addEventListener('keydown', (event) => {
         if (event.key !== 'Escape') return;
+        // Close account modal first (if open)
+        if (authModal && !authModal.classList.contains('hidden')) {
+          closeAuthModal();
+          return;
+        }
         if (!leaderboardModal || leaderboardModal.classList.contains('hidden')) return;
         // Escape: bypass in submit flow, normal close otherwise.
         if (leaderboardModalMode === 'submitWin') {
@@ -731,6 +1134,8 @@
       async function initFirebaseAndLeaderboard() {
         try {
           currentUser = await ensureAnonUser();
+          updateAuthUiForUser(currentUser);
+          updateLeaderboardSubtitleForUser(currentUser);
           await loadLeaderboard();
         } catch (error) {
           console.error('Failed to initialize Firebase leaderboard', error);
